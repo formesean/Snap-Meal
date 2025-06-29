@@ -8,7 +8,12 @@ plugins {
 android {
     namespace = "com.example.snapmeal"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
+
+    aaptOptions {
+        noCompress("tflite")
+        noCompress("lite")
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
