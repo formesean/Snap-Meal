@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'recipe_screen.dart';
 
+const kPrimaryBlue = Color(0xFF3B82F6);
+
 class IngredientsScreen extends StatefulWidget {
   final List<String> predictions;
   final List<String>? existingIngredients;
@@ -55,32 +57,43 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: const Color(0xFFF0F9FF),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Detected Ingredients",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: reset,
+              child: const Text("Reset", style: TextStyle(color: Colors.red)),
+            ),
+          ],
         ),
-        title: const Text("Detected Ingredients"),
-        actions: [
-          TextButton(
-            onPressed: reset,
-            child: const Text("Reset", style: TextStyle(color: Colors.red)),
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // List of ingredients
+            // 🍽 Ingredient List
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -88,19 +101,23 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                 children: [
                   const Row(
                     children: [
-                      Icon(
-                        LucideIcons.utensils,
-                        size: 20,
-                        color: Colors.orange,
-                      ),
+                      Icon(LucideIcons.utensils, size: 20, color: kPrimaryBlue),
                       SizedBox(width: 8),
                       Text(
                         "Your Ingredients",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
+                  if (ingredients.isEmpty)
+                    const Text(
+                      "No ingredients yet.",
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ...ingredients.map(
                     (item) => Container(
                       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -109,7 +126,10 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
-                        title: Text(item),
+                        title: Text(
+                          item,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
                         trailing: IconButton(
                           icon: const Icon(LucideIcons.x, color: Colors.red),
                           onPressed: () => removeIngredient(item),
@@ -120,9 +140,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: ingredients.isEmpty
                   ? null
@@ -135,23 +153,29 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                       );
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                minimumSize: const Size.fromHeight(50),
+                backgroundColor: kPrimaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: const Text("Find Matching Recipes"),
             ),
-
             const SizedBox(height: 12),
-
             OutlinedButton.icon(
               onPressed: addMore,
               icon: const Icon(LucideIcons.plus),
               label: const Text("Add More Ingredients"),
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                textStyle: const TextStyle(fontSize: 16),
+                side: const BorderSide(color: kPrimaryBlue, width: 2),
+                foregroundColor: kPrimaryBlue,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),

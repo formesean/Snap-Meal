@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+const kPrimaryBlue = Color(0xFF3B82F6);
+
 class RecipeScreen extends StatefulWidget {
   const RecipeScreen({super.key});
 
@@ -73,7 +75,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF0F9FF),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -118,7 +120,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 recipe["ingredients"].length,
                 (i) => Row(
                   children: [
-                    const Icon(Icons.circle, size: 6, color: Colors.orange),
+                    const Icon(Icons.circle, size: 6, color: kPrimaryBlue),
                     const SizedBox(width: 6),
                     Text(recipe["ingredients"][i]),
                   ],
