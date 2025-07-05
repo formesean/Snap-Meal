@@ -9,74 +9,79 @@ void log(String message, {String tag = 'TFLite', String emoji = '🧠'}) {
 }
 
 class TFLiteService {
-  late final Interpreter _interpreter;
-  late final List<String> _labels;
+  Interpreter? _interpreter;
+  List<String> _labels = [];
+  int _inputSize = 224;
+
+  bool get isReady => _interpreter != null && _labels.isNotEmpty;
 
   Future<void> init() async {
-    log("Initializing model...");
-    _interpreter = await Interpreter.fromAsset('assets/model.tflite');
-    final rawLabels = await rootBundle.loadString('assets/labels.txt');
-    _labels = rawLabels.split('\n');
-    log("Model and labels loaded: ${_labels.length} labels");
+    try {
+      log("Initializing model...");
+      _interpreter = await Interpreter.fromAsset('assets/model.tflite');
+      final rawLabels = await rootBundle.loadString('assets/labels.txt');
+      _labels = rawLabels
+          .split('\n')
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
+      log("Model and labels loaded: ${_labels.length} labels");
+    } catch (e) {
+      log("❌ Failed to initialize TFLite model: $e", emoji: "⚠️");
+    }
   }
 
   Future<List<String>> classifyImage(Uint8List imageBytes) async {
+    if (!isReady) {
+      log("❌ TFLite model is not ready yet", emoji: "🚫");
+      return [];
+    }
+
     log("Starting classification...");
+
     final decoded = img.decodeImage(imageBytes);
     if (decoded == null) {
       log("Failed to decode image", emoji: '⚠️');
       return [];
     }
 
-    final resized = img.copyResize(decoded, width: 513, height: 513);
-    final input = Uint8List(1 * 513 * 513 * 3);
+    final resized = img.copyResize(
+      decoded,
+      width: _inputSize,
+      height: _inputSize,
+    );
+    final input = Float32List(_inputSize * _inputSize * 3);
     int idx = 0;
 
-    for (int y = 0; y < 513; y++) {
-      for (int x = 0; x < 513; x++) {
-        final pixel = resized.getPixelSafe(x, y); // returns PixelUint8
-
-        input[idx++] = pixel.r.toInt();
-        input[idx++] = pixel.g.toInt();
-        input[idx++] = pixel.b.toInt();
+    // Normalize and flatten image data to [0.0, 1.0]
+    for (int y = 0; y < _inputSize; y++) {
+      for (int x = 0; x < _inputSize; x++) {
+        final pixel = resized.getPixelSafe(x, y);
+        input[idx++] = pixel.r / 255.0;
+        input[idx++] = pixel.g / 255.0;
+        input[idx++] = pixel.b / 255.0;
       }
     }
 
-    final output = List.generate(
-      1,
-      (_) => List.generate(
-        513,
-        (_) => List.generate(513, (_) => List.filled(26, 0.0)),
-      ),
-    );
+    final inputTensor = input.reshape([1, _inputSize, _inputSize, 3]);
+    final outputTensor = List.filled(
+      _labels.length,
+      0.0,
+    ).reshape([1, _labels.length]);
 
     log("Running inference...");
-    _interpreter.run(input.reshape([1, 513, 513, 3]), output);
+    _interpreter!.run(inputTensor, outputTensor);
 
-    final counts = <int, int>{};
-    for (var y = 0; y < 513; y++) {
-      for (var x = 0; x < 513; x++) {
-        final classScores = output[0][y][x]; // List<double> of length 26
-        int maxIdx = 0;
-        double maxVal = classScores[0];
-        for (int c = 1; c < classScores.length; c++) {
-          if (classScores[c] > maxVal) {
-            maxVal = classScores[c];
-            maxIdx = c;
-          }
-        }
-        counts[maxIdx] = (counts[maxIdx] ?? 0) + 1;
-      }
-    }
+    final scores = outputTensor[0] as List<double>;
 
-    final sorted = counts.entries.toList()
+    // Get top 3 predictions
+    final top = scores.asMap().entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    final topLabels = sorted
-        .take(3)
-        .map((e) => _labels[e.key])
-        .where((label) => label != 'background')
-        .toList();
+    final topLabels = top.take(3).map((e) {
+      final label = _labels[e.key];
+      final confidence = (e.value * 100).toStringAsFixed(1);
+      return '$label ($confidence%)';
+    }).toList();
 
     log("Classification complete: $topLabels", emoji: '✅');
     return topLabels;
