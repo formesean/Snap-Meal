@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'screens/home_screen.dart';
-import 'providers/ingredient_provider.dart';
+import 'screens/camera_screen.dart';
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => IngredientProvider())],
-      child: const SnapMealApp(),
-    ),
-  );
+  runApp(const SnapMealApp());
 }
 
 class SnapMealApp extends StatelessWidget {
@@ -19,8 +12,13 @@ class SnapMealApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SnapMeal',
-      theme: ThemeData(primarySwatch: Colors.green),
-      home: const HomeScreen(),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.orange,
+        scaffoldBackgroundColor: const Color(0xFFF8F8F8),
+      ),
+      home: const CameraScreen(),
     );
   }
 }
