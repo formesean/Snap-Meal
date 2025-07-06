@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../widgets/nutrient_tile.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
 
@@ -142,7 +143,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundColor: Colors.orange,
+                        backgroundColor: kPrimaryBlue,
                         child: Text(
                           '${i + 1}',
                           style: const TextStyle(
@@ -168,56 +169,31 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _buildNutrient(
-                    "Calories",
-                    recipe["nutrition"]["calories"],
-                    Colors.orange,
+                  NutrientTile(
+                    label: "Calories",
+                    value: recipe["nutrition"]["calories"],
+                    color: Colors.orange,
                   ),
-                  _buildNutrient(
-                    "Protein",
-                    recipe["nutrition"]["protein"],
-                    Colors.blue,
+                  NutrientTile(
+                    label: "Protein",
+                    value: recipe["nutrition"]["protein"],
+                    color: Colors.blue,
                   ),
-                  _buildNutrient(
-                    "Carbs",
-                    recipe["nutrition"]["carbs"],
-                    Colors.green,
+                  NutrientTile(
+                    label: "Carbs",
+                    value: recipe["nutrition"]["carbs"],
+                    color: Colors.green,
                   ),
-                  _buildNutrient(
-                    "Fat",
-                    recipe["nutrition"]["fat"],
-                    Colors.purple,
+                  NutrientTile(
+                    label: "Fat",
+                    value: recipe["nutrition"]["fat"],
+                    color: Colors.purple,
                   ),
                 ],
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNutrient(String label, String value, Color color) {
-    return Container(
-      width: 120,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
       ),
     );
   }
@@ -229,7 +205,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: const Color(0xFFF0F9FF),
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -332,7 +308,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
                       ElevatedButton(
                         onPressed: () => showRecipeDetails(recipe),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: kPrimaryBlue,
+                          foregroundColor: Colors.white,
                           minimumSize: const Size.fromHeight(44),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
