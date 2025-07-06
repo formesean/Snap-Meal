@@ -4,20 +4,16 @@ import '../widgets/nutrient_tile.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
 
-class RecipeScreen extends StatefulWidget {
-  const RecipeScreen({super.key});
+class RecipeScreen extends StatelessWidget {
+  final List<String> ingredients;
 
-  @override
-  State<RecipeScreen> createState() => _RecipeScreenState();
-}
+  const RecipeScreen({super.key, required this.ingredients});
 
-class _RecipeScreenState extends State<RecipeScreen> {
-  final mockRecipes = [
+  final List<Map<String, dynamic>> mockRecipes = const [
     {
       "name": "Chicken Stir Fry",
       "cookTime": "25 min",
       "servings": 4,
-      "match": 95,
       "ingredients": [
         "Chicken Breast",
         "Bell Peppers",
@@ -43,7 +39,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
       "name": "Mediterranean Pasta",
       "cookTime": "20 min",
       "servings": 3,
-      "match": 78,
       "ingredients": [
         "Tomatoes",
         "Garlic",
@@ -68,10 +63,30 @@ class _RecipeScreenState extends State<RecipeScreen> {
     },
   ];
 
-  Map<String, dynamic>? selectedRecipe;
+  List<Map<String, dynamic>> getMatchedRecipes() {
+    final lowerIngredients = ingredients.map((e) => e.toLowerCase()).toList();
 
-  void showRecipeDetails(Map<String, dynamic> recipe) {
-    setState(() => selectedRecipe = recipe);
+    return mockRecipes
+        .map((recipe) {
+          final List<String> recipeIngredients = List<String>.from(
+            recipe["ingredients"],
+          ).map((i) => i.toLowerCase()).toList();
+
+          final matches = recipeIngredients
+              .where((ingredient) => lowerIngredients.contains(ingredient))
+              .length;
+
+          final matchPercent = ((matches / recipeIngredients.length) * 100)
+              .round();
+
+          return {...recipe, "match": matchPercent};
+        })
+        .where((r) => r["match"] > 0)
+        .toList()
+      ..sort((a, b) => b["match"].compareTo(a["match"]));
+  }
+
+  void showRecipeDetails(BuildContext context, Map<String, dynamic> recipe) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -111,7 +126,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Tabs-style layout
               const Text(
                 "Ingredients",
                 style: TextStyle(fontWeight: FontWeight.w600),
@@ -198,12 +212,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
 
-  void resetFlow() {
+  void resetFlow(BuildContext context) {
     Navigator.popUntil(context, (route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
+    final matchedRecipes = getMatchedRecipes();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F9FF),
       appBar: AppBar(
@@ -217,114 +233,117 @@ class _RecipeScreenState extends State<RecipeScreen> {
         title: const Text("Recipe Suggestions"),
         actions: [
           TextButton(
-            onPressed: resetFlow,
+            onPressed: () => resetFlow(context),
             child: const Text("Reset", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: mockRecipes.length,
-        itemBuilder: (context, index) {
-          final recipe = mockRecipes[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    Container(
-                      height: 160,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
-                      ),
-                      child: const Icon(
-                        LucideIcons.image,
-                        size: 60,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          "${recipe["match"]}% match",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
+      body: matchedRecipes.isEmpty
+          ? const Center(child: Text("😞 No matching recipes found"))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: matchedRecipes.length,
+              itemBuilder: (context, index) {
+                final recipe = matchedRecipes[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        recipe["name"] as String? ?? '',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
+                      Stack(
                         children: [
-                          Icon(
-                            LucideIcons.clock,
-                            size: 16,
-                            color: Colors.grey[600],
+                          Container(
+                            height: 160,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(12),
+                              ),
+                            ),
+                            child: const Icon(
+                              LucideIcons.image,
+                              size: 60,
+                              color: Colors.grey,
+                            ),
                           ),
-                          const SizedBox(width: 6),
-                          Text(recipe["cookTime"] as String? ?? ''),
-                          const SizedBox(width: 16),
-                          Icon(
-                            LucideIcons.users,
-                            size: 16,
-                            color: Colors.grey[600],
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                "${recipe["match"]}% match",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 6),
-                          Text("${recipe["servings"]} servings"),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () => showRecipeDetails(recipe),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryBlue,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(44),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recipe["name"],
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  LucideIcons.clock,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 6),
+                                Text(recipe["cookTime"]),
+                                const SizedBox(width: 16),
+                                Icon(
+                                  LucideIcons.users,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 6),
+                                Text("${recipe["servings"]} servings"),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  showRecipeDetails(context, recipe),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kPrimaryBlue,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(44),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text("View Recipe Details"),
+                            ),
+                          ],
                         ),
-                        child: const Text("View Recipe Details"),
                       ),
                     ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }
