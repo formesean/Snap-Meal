@@ -39,6 +39,13 @@ class CameraHandler {
     Uint8List bytes = await file.readAsBytes();
     return await _tfliteService.classifyImage(bytes);
   }
+
+  Future<XFile> captureImage() async {
+    if (controller == null || !controller!.value.isInitialized) {
+      throw Exception("Camera not ready");
+    }
+    return await controller!.takePicture();
+  }
 }
 
 // EOF
