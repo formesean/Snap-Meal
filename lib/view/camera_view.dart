@@ -1,111 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:snapmeal/services/tflite_service.dart';
-import 'ingredient_screen.dart';
+
+import 'package:snapmeal/controllers/camera_controller.dart';
+import 'package:snapmeal/controllers/tflite_controller.dart';
+import 'package:snapmeal/view/ingredient_view.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
 
-class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+class CameraView extends StatefulWidget {
+  const CameraView({super.key});
 
   @override
-  State<CameraScreen> createState() => _CameraScreenState();
+  State<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
-  CameraController? _cameraController;
-  final TFLiteService _tfliteService = TFLiteService();
+class _CameraViewState extends State<CameraView> {
+  final CameraHandler _cameraHandler = CameraHandler();
+  final TFLiteHandler _tfliteHandler = TFLiteHandler();
 
-  bool _isCameraInitializing = false;
-  bool _isCameraInitialized = false;
-  bool _isModelReady = false;
   bool isDetecting = false;
-
+  bool isModelReady = false;
   List<String> _ingredients = [];
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
-    _initializeModel();
+    _initialize();
   }
 
-  Future<void> _initializeCamera() async {
-    if (_isCameraInitializing) return;
-    _isCameraInitializing = true;
-
-    try {
-      if (_isCameraInitialized && _cameraController != null) {
-        await _cameraController!.dispose();
-        _cameraController = null;
-        _isCameraInitialized = false;
-      }
-
-      final cameras = await availableCameras();
-      final rearCamera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-
-      _cameraController = CameraController(
-        rearCamera,
-        ResolutionPreset.max,
-        enableAudio: false,
-      );
-
-      await _cameraController!.initialize();
-
-      if (mounted) {
-        setState(() => _isCameraInitialized = true);
-      }
-    } catch (e) {
-      debugPrint('❌ Failed to initialize camera: $e');
-    } finally {
-      _isCameraInitializing = false;
+  Future<void> _initialize() async {
+    await _cameraHandler.initializeCamera();
+    await _tfliteHandler.loadModel();
+    if (mounted) {
+      setState(() {
+        isModelReady = _tfliteHandler.isModelLoaded;
+      });
     }
-  }
-
-  Future<void> _initializeModel() async {
-    await _tfliteService.init();
-    if (mounted && _tfliteService.isReady) {
-      setState(() => _isModelReady = true);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Failed to load TFLite model')),
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _cameraController?.dispose();
-    super.dispose();
   }
 
   Future<void> _takePicture() async {
-    if (_cameraController == null ||
-        !_cameraController!.value.isInitialized ||
-        isDetecting)
-      return;
-
+    if (!_cameraHandler.isReady || isDetecting) return;
     setState(() => isDetecting = true);
-    try {
-      final file = await _cameraController!.takePicture();
-      final imageBytes = await file.readAsBytes();
-      final predictions = await _tfliteService.classifyImage(imageBytes);
 
-      await _cameraController!.dispose();
-      _cameraController = null;
-      _isCameraInitialized = false;
+    try {
+      final file = await _cameraHandler.captureImage();
+      final imageBytes = await file.readAsBytes();
+      final predictions = await _tfliteHandler.classifyImage(imageBytes);
+      await _cameraHandler.disposeCamera();
 
       if (!mounted) return;
 
       final updatedIngredients = await Navigator.push<List<String>>(
         context,
         MaterialPageRoute(
-          builder: (_) => IngredientsScreen(
+          builder: (_) => IngredientView(
+            predictions: predictions,
+            existingIngredients: _ingredients,
+          ),
+        ),
+      );
+
+      if (updatedIngredients != null) {
+        setState(() => _ingredients = updatedIngredients);
+      }
+
+      await _cameraHandler.initializeCamera();
+    } catch (e) {
+      debugPrint('❌ Error taking picture: $e');
+    } finally {
+      if (mounted) setState(() => isDetecting = false);
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      final imageBytes = await pickedFile.readAsBytes();
+      final predictions = await _tfliteHandler.classifyImage(imageBytes);
+
+      final updatedIngredients = await Navigator.push<List<String>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => IngredientView(
             predictions: predictions,
             existingIngredients: _ingredients,
           ),
@@ -117,13 +97,15 @@ class _CameraScreenState extends State<CameraScreen> {
           _ingredients = updatedIngredients;
         });
       }
-
-      await _initializeCamera();
-    } catch (e) {
-      debugPrint('❌ Error taking picture: $e');
-    } finally {
-      if (mounted) setState(() => isDetecting = false);
+    } else {
+      debugPrint('🟡 No image selected.');
     }
+  }
+
+  @override
+  void dispose() {
+    _cameraHandler.disposeCamera();
+    super.dispose();
   }
 
   @override
@@ -139,10 +121,10 @@ class _CameraScreenState extends State<CameraScreen> {
               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
             ),
             child: Column(
-              children: [
+              children: const [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Icon(LucideIcons.chefHat, color: kPrimaryBlue, size: 32),
                     SizedBox(width: 8),
                     Text(
@@ -155,8 +137,8 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                const Text(
+                SizedBox(height: 4),
+                Text(
                   "Snap ingredients, discover recipes",
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
@@ -175,8 +157,8 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: _isCameraInitialized && _cameraController != null
-                      ? CameraPreview(_cameraController!)
+                  child: _cameraHandler.isReady
+                      ? CameraPreview(_cameraHandler.controller!)
                       : const Center(
                           child: CircularProgressIndicator(color: kPrimaryBlue),
                         ),
@@ -190,9 +172,9 @@ class _CameraScreenState extends State<CameraScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ElevatedButton.icon(
-                  onPressed: _isModelReady ? _takePicture : null,
+                  onPressed: isModelReady ? _takePicture : null,
                   icon: const Icon(LucideIcons.camera),
-                  label: Text(_isModelReady ? "Take Photo" : "Loading Model…"),
+                  label: Text(isModelReady ? "Take Photo" : "Loading Model…"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
@@ -208,13 +190,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('📷 Upload not implemented yet'),
-                      ),
-                    );
-                  },
+                  onPressed: isModelReady ? _pickImageFromGallery : null,
                   icon: const Icon(LucideIcons.upload),
                   label: const Text("Upload from Gallery"),
                   style: OutlinedButton.styleFrom(
@@ -230,17 +206,13 @@ class _CameraScreenState extends State<CameraScreen> {
                 const SizedBox(height: 12),
                 TextButton.icon(
                   onPressed: () async {
-                    if (_cameraController != null) {
-                      await _cameraController!.dispose();
-                      _cameraController = null;
-                      _isCameraInitialized = false;
-                    }
+                    await _cameraHandler.disposeCamera();
 
                     final updatedIngredients =
                         await Navigator.push<List<String>>(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => IngredientsScreen(
+                            builder: (_) => IngredientView(
                               predictions: [],
                               existingIngredients: _ingredients,
                             ),
@@ -248,12 +220,10 @@ class _CameraScreenState extends State<CameraScreen> {
                         );
 
                     if (updatedIngredients != null) {
-                      setState(() {
-                        _ingredients = updatedIngredients;
-                      });
+                      setState(() => _ingredients = updatedIngredients);
                     }
 
-                    await _initializeCamera();
+                    await _cameraHandler.initializeCamera();
                   },
                   icon: const Icon(LucideIcons.utensils, color: kPrimaryBlue),
                   label: const Text(
@@ -280,3 +250,5 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 }
+
+// EOF
