@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'recipe_screen.dart';
+
+import 'package:snapmeal/view/recipe_view.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
 
-class IngredientsScreen extends StatefulWidget {
+class IngredientView extends StatefulWidget {
   final List<String> predictions;
   final List<String>? existingIngredients;
 
-  const IngredientsScreen({
+  const IngredientView({
     super.key,
     required this.predictions,
     this.existingIngredients,
   });
 
   @override
-  State<IngredientsScreen> createState() => _IngredientsScreenState();
+  State<IngredientView> createState() => _IngredientViewState();
 }
 
-class _IngredientsScreenState extends State<IngredientsScreen> {
+class _IngredientViewState extends State<IngredientView> {
   late List<String> ingredients;
 
   @override
@@ -87,7 +88,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Colors.black12,
                     blurRadius: 6,
@@ -149,7 +150,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              RecipeScreen(ingredients: ingredients),
+                              RecipeView(ingredients: ingredients),
                         ),
                       );
                     },
@@ -188,3 +189,5 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
     );
   }
 }
+
+// EOF

@@ -1,24 +1,26 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:http/http.dart' as http;
-import '../widgets/nutrient_tile.dart';
+
+import 'package:snapmeal/controllers/recipe_controller.dart';
+import 'package:snapmeal/models/recipe.dart';
+import 'package:snapmeal/widgets/nutrient_tile.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
-const spoonacularKey = '921fa3e9ddb54a4a8eeafe8f7d0da663';
 
-class RecipeScreen extends StatefulWidget {
+class RecipeView extends StatefulWidget {
   final List<String> ingredients;
 
-  const RecipeScreen({super.key, required this.ingredients});
+  const RecipeView({super.key, required this.ingredients});
 
   @override
-  State<RecipeScreen> createState() => _RecipeScreenState();
+  State<RecipeView> createState() => _RecipeViewState();
 }
 
-class _RecipeScreenState extends State<RecipeScreen> {
-  List<Map<String, dynamic>> recipes = [];
-  bool isLoading = true, hasError = false;
+class _RecipeViewState extends State<RecipeView> {
+  final RecipeController _controller = RecipeController();
+  List<Recipe> recipes = [];
+  bool isLoading = true;
+  bool hasError = false;
 
   @override
   void initState() {
@@ -32,84 +34,17 @@ class _RecipeScreenState extends State<RecipeScreen> {
       hasError = false;
     });
 
-    final query = widget.ingredients.join(',+');
-    final url = Uri.https('api.spoonacular.com', '/recipes/findByIngredients', {
-      'ingredients': query,
-      'number': '10',
-      'ranking': '1',
-      'apiKey': spoonacularKey,
-    });
-
     try {
-      final resp = await http.get(url);
-      if (resp.statusCode != 200) throw Exception('API error');
-      final List data = jsonDecode(resp.body);
-
-      // Fetch full info & nutrition for each recipe
-      final futures = data.map((r) async {
-        final id = r['id'];
-        final infoUrl = Uri.https(
-          'api.spoonacular.com',
-          '/recipes/$id/information',
-          {'includeNutrition': 'true', 'apiKey': spoonacularKey},
-        );
-        final infoRes = await http.get(infoUrl);
-        if (infoRes.statusCode != 200) throw Exception();
-        final info = jsonDecode(infoRes.body);
-        final used = (r['usedIngredientCount'] as int);
-        final total = (r['missedIngredientCount'] as int) + used;
-        final match = ((used / total) * 100).round();
-        return {
-          'id': id,
-          'title': info['title'],
-          'cookTime': '${info['readyInMinutes']} min',
-          'servings': info['servings'],
-          'ingredients': info['extendedIngredients']
-              .map<String>((i) => i['original'] as String)
-              .toList(),
-          'steps': info['analyzedInstructions'].isNotEmpty
-              ? (info['analyzedInstructions'][0]['steps'] as List)
-                    .map<String>((s) => s['step'] as String)
-                    .toList()
-              : [],
-          'nutrition': {
-            'calories': _getNutrient(info, 'Calories'),
-            'protein': _getNutrient(info, 'Protein'),
-            'carbs': _getNutrient(info, 'Carbohydrates'),
-            'fat': _getNutrient(info, 'Fat'),
-          },
-          'match': match,
-        };
-      }).toList();
-
-      final results = await Future.wait(futures);
-      results.sort((a, b) => b['match'].compareTo(a['match']));
-
-      setState(() {
-        recipes = results;
-      });
-    } catch (e) {
-      setState(() {
-        hasError = true;
-      });
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  String _getNutrient(Map<String, dynamic> info, String label) {
-    try {
-      return (info['nutrition']['nutrients'] as List)
-          .firstWhere((n) => n['name'] == label)['amount']
-          .toStringAsFixed(0);
+      final result = await _controller.fetchRecipes(widget.ingredients);
+      setState(() => recipes = result);
     } catch (_) {
-      return '-';
+      setState(() => hasError = true);
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
-  void showDetails(Map<String, dynamic> recipe) {
+  void showDetails(Recipe recipe) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -131,11 +66,11 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
 
-  Widget _buildDetailContent(Map<String, dynamic> r) => Column(
+  Widget _buildDetailContent(Recipe r) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        r['title'],
+        r.title,
         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 12),
@@ -143,17 +78,17 @@ class _RecipeScreenState extends State<RecipeScreen> {
         children: [
           Icon(LucideIcons.clock, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 6),
-          Text(r['cookTime']),
+          Text(r.cookTime),
           const SizedBox(width: 16),
           Icon(LucideIcons.users, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 6),
-          Text('${r['servings']} servings'),
+          Text('${r.servings} servings'),
         ],
       ),
       const SizedBox(height: 16),
       const Text('Ingredients', style: TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
-      ...r['ingredients'].map<Widget>(
+      ...r.ingredients.map(
         (i) => Row(
           children: [
             const Icon(Icons.circle, size: 6, color: kPrimaryBlue),
@@ -165,10 +100,8 @@ class _RecipeScreenState extends State<RecipeScreen> {
       const SizedBox(height: 20),
       const Text('Steps', style: TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
-      ...r['steps'].asMap().entries.map((e) {
-        final i = e.key;
-        final s = e.value;
-        return Padding(
+      ...r.steps.asMap().entries.map(
+        (e) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,16 +110,16 @@ class _RecipeScreenState extends State<RecipeScreen> {
                 radius: 12,
                 backgroundColor: kPrimaryBlue,
                 child: Text(
-                  '${i + 1}',
+                  '${e.key + 1}',
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: Text(s)),
+              Expanded(child: Text(e.value)),
             ],
           ),
-        );
-      }),
+        ),
+      ),
       const SizedBox(height: 20),
       const Text('Nutrition', style: TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 12),
@@ -196,22 +129,22 @@ class _RecipeScreenState extends State<RecipeScreen> {
         children: [
           NutrientTile(
             label: 'Calories',
-            value: r['nutrition']['calories'],
+            value: r.nutrition.calories,
             color: Colors.orange,
           ),
           NutrientTile(
             label: 'Protein',
-            value: r['nutrition']['protein'],
+            value: r.nutrition.protein,
             color: Colors.blue,
           ),
           NutrientTile(
             label: 'Carbs',
-            value: r['nutrition']['carbs'],
+            value: r.nutrition.carbs,
             color: Colors.green,
           ),
           NutrientTile(
             label: 'Fat',
-            value: r['nutrition']['fat'],
+            value: r.nutrition.fat,
             color: Colors.purple,
           ),
         ],
@@ -264,7 +197,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                               ),
                             ),
                             child: Image.network(
-                              'https://spoonacular.com/recipeImages/${r['id']}-556x370.jpg',
+                              'https://spoonacular.com/recipeImages/${r.id}-556x370.jpg',
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -281,7 +214,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '${r['match']}% match',
+                                '${r.match}% match',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -297,7 +230,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              r['title'],
+                              r.title,
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -312,7 +245,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                   color: Colors.grey[600],
                                 ),
                                 const SizedBox(width: 6),
-                                Text(r['cookTime']),
+                                Text(r.cookTime),
                                 const SizedBox(width: 16),
                                 Icon(
                                   LucideIcons.users,
@@ -320,7 +253,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
                                   color: Colors.grey[600],
                                 ),
                                 const SizedBox(width: 6),
-                                Text('${r['servings']} servings'),
+                                Text('${r.servings} servings'),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -347,3 +280,5 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
 }
+
+// EOF

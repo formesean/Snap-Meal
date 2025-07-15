@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'screens/camera_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:snapmeal/view/camera_view.dart';
 
-const kPrimaryBlue = Color(0xFF3B82F6);
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
   runApp(const SnapMealApp());
 }
 
@@ -12,14 +15,14 @@ class SnapMealApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Snap Meal',
+      title: 'SnapMeal',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: kPrimaryBlue,
         scaffoldBackgroundColor: const Color(0xFFF0F9FF),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3B82F6)),
+        useMaterial3: true,
       ),
-      home: const CameraScreen(),
+      home: const CameraView(),
     );
   }
 }
