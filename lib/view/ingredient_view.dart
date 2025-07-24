@@ -56,7 +56,7 @@ class _IngredientViewState extends State<IngredientView> {
   }
 
   void addMore() {
-    Navigator.pop(context, ingredients); // Return current list for re-use
+    Navigator.pop(context, ingredients);
   }
 
   @override
@@ -91,7 +91,6 @@ class _IngredientViewState extends State<IngredientView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 🍽 Ingredient List
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,

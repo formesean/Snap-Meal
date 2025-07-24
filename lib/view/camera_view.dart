@@ -101,7 +101,6 @@ class _CameraViewState extends State<CameraView> {
       final imageBytes = await pickedFile.readAsBytes();
       final predictions = await _tfliteHandler.classifyImage(imageBytes);
 
-      // Dispose the camera before navigating
       await _cameraHandler.disposeCamera();
 
       final updatedIngredients = await Navigator.push<List<String>>(
@@ -122,7 +121,6 @@ class _CameraViewState extends State<CameraView> {
         setState(() => _ingredients = updatedIngredients);
       }
 
-      // Re-initialize the camera after returning
       _cameraInitFuture = _cameraHandler.initializeCamera();
       await _cameraInitFuture;
       if (mounted) setState(() {});
