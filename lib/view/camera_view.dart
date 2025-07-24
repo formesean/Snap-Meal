@@ -24,6 +24,8 @@ class _CameraViewState extends State<CameraView> {
   bool isModelReady = false;
   List<String> _ingredients = [];
 
+  Future<void>? _cameraInitFuture;
+
   @override
   void initState() {
     super.initState();
@@ -31,7 +33,9 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Future<void> _initialize() async {
-    await _cameraHandler.initializeCamera();
+    _cameraInitFuture = _cameraHandler.initializeCamera();
+    await _cameraInitFuture;
+
     await _tfliteHandler.loadModel();
     if (mounted) {
       setState(() {
@@ -48,6 +52,7 @@ class _CameraViewState extends State<CameraView> {
       final file = await _cameraHandler.captureImage();
       final imageBytes = await file.readAsBytes();
       final predictions = await _tfliteHandler.classifyImage(imageBytes);
+
       await _cameraHandler.disposeCamera();
 
       if (!mounted) return;
@@ -58,17 +63,31 @@ class _CameraViewState extends State<CameraView> {
           builder: (_) => IngredientView(
             predictions: predictions,
             existingIngredients: _ingredients,
+            onReset: () {
+              setState(() => _ingredients = []);
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
           ),
         ),
       );
+
+      if (!mounted) return;
 
       if (updatedIngredients != null) {
         setState(() => _ingredients = updatedIngredients);
       }
 
-      await _cameraHandler.initializeCamera();
+      _cameraInitFuture = _cameraHandler.initializeCamera();
+      await _cameraInitFuture;
+
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('❌ Error taking picture: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
     } finally {
       if (mounted) setState(() => isDetecting = false);
     }
@@ -82,21 +101,31 @@ class _CameraViewState extends State<CameraView> {
       final imageBytes = await pickedFile.readAsBytes();
       final predictions = await _tfliteHandler.classifyImage(imageBytes);
 
+      // Dispose the camera before navigating
+      await _cameraHandler.disposeCamera();
+
       final updatedIngredients = await Navigator.push<List<String>>(
         context,
         MaterialPageRoute(
           builder: (_) => IngredientView(
             predictions: predictions,
             existingIngredients: _ingredients,
+            onReset: () {
+              setState(() => _ingredients = []);
+              Navigator.popUntil(context, (route) => route.isFirst);
+            },
           ),
         ),
       );
 
-      if (updatedIngredients != null) {
-        setState(() {
-          _ingredients = updatedIngredients;
-        });
+      if (updatedIngredients != null && mounted) {
+        setState(() => _ingredients = updatedIngredients);
       }
+
+      // Re-initialize the camera after returning
+      _cameraInitFuture = _cameraHandler.initializeCamera();
+      await _cameraInitFuture;
+      if (mounted) setState(() {});
     } else {
       debugPrint('🟡 No image selected.');
     }
@@ -149,7 +178,7 @@ class _CameraViewState extends State<CameraView> {
             child: Center(
               child: Container(
                 width: 300,
-                height: 300,
+                height: 400,
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(24),
@@ -157,11 +186,20 @@ class _CameraViewState extends State<CameraView> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: _cameraHandler.isReady
-                      ? CameraPreview(_cameraHandler.controller!)
-                      : const Center(
-                          child: CircularProgressIndicator(color: kPrimaryBlue),
-                        ),
+                  child: FutureBuilder(
+                    future: _cameraInitFuture,
+                    builder: (context, snapshot) {
+                      final controller = _cameraHandler.controller;
+                      if (snapshot.connectionState == ConnectionState.done &&
+                          controller != null &&
+                          controller.value.isInitialized) {
+                        return CameraPreview(controller);
+                      }
+                      return const Center(
+                        child: CircularProgressIndicator(color: kPrimaryBlue),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -215,15 +253,27 @@ class _CameraViewState extends State<CameraView> {
                             builder: (_) => IngredientView(
                               predictions: [],
                               existingIngredients: _ingredients,
+                              onReset: () {
+                                setState(() => _ingredients = []);
+                                Navigator.popUntil(
+                                  context,
+                                  (route) => route.isFirst,
+                                );
+                              },
                             ),
                           ),
                         );
+
+                    if (!mounted) return;
 
                     if (updatedIngredients != null) {
                       setState(() => _ingredients = updatedIngredients);
                     }
 
-                    await _cameraHandler.initializeCamera();
+                    _cameraInitFuture = _cameraHandler.initializeCamera();
+                    await _cameraInitFuture;
+
+                    if (mounted) setState(() {});
                   },
                   icon: const Icon(LucideIcons.utensils, color: kPrimaryBlue),
                   label: const Text(

@@ -8,11 +8,13 @@ const kPrimaryBlue = Color(0xFF3B82F6);
 class IngredientView extends StatefulWidget {
   final List<String> predictions;
   final List<String>? existingIngredients;
+  final void Function()? onReset;
 
   const IngredientView({
     super.key,
     required this.predictions,
     this.existingIngredients,
+    this.onReset,
   });
 
   @override
@@ -48,7 +50,9 @@ class _IngredientViewState extends State<IngredientView> {
   }
 
   void reset() {
-    Navigator.popUntil(context, (route) => route.isFirst);
+    if (widget.onReset != null) {
+      widget.onReset!();
+    }
   }
 
   void addMore() {
@@ -72,7 +76,11 @@ class _IngredientViewState extends State<IngredientView> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             TextButton(
-              onPressed: reset,
+              onPressed: () {
+                if (widget.onReset != null) {
+                  widget.onReset!();
+                }
+              },
               child: const Text("Reset", style: TextStyle(color: Colors.red)),
             ),
           ],
