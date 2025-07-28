@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import 'package:snapmeal/view/recipe_view.dart';
+import 'package:snapmeal/views/recipe_view.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
 

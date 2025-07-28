@@ -5,7 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:snapmeal/controllers/camera_controller.dart';
 import 'package:snapmeal/controllers/tflite_controller.dart';
-import 'package:snapmeal/view/ingredient_view.dart';
+import 'package:snapmeal/views/ingredient_view.dart';
 
 const kPrimaryBlue = Color(0xFF3B82F6);
 
